@@ -1,0 +1,32 @@
+# Build outputs
+bin/
+obj/
+out/
+
+# .NET
+*.user
+*.suo
+.vs/
+*.ncrunch*
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+
+# Worktrees
+.worktrees/
+
+# Environment
+.env
+.env.local
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+
+# Docker volumes
+pgdata/
+
+# OS
+.DS_Store
+Thumbs.db
