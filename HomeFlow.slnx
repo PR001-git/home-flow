@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HomeFlow.API/HomeFlow.API.csproj" />
+    <Project Path="src/HomeFlow.Application/HomeFlow.Application.csproj" />
+    <Project Path="src/HomeFlow.Domain/HomeFlow.Domain.csproj" />
+    <Project Path="src/HomeFlow.Infrastructure/HomeFlow.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HomeFlow.API.Tests/HomeFlow.API.Tests.csproj" />
+    <Project Path="tests/HomeFlow.Application.Tests/HomeFlow.Application.Tests.csproj" />
+    <Project Path="tests/HomeFlow.Infrastructure.Tests/HomeFlow.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>
