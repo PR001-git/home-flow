@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: homeflow
+      POSTGRES_USER: homeflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-homeflow_dev}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U homeflow -d homeflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build: .
+    ports:
+      - "5000:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Database=homeflow;Username=homeflow;Password=${POSTGRES_PASSWORD:-homeflow_dev}
+      - Jwt__Key=${JWT_KEY:-docker-dev-secret-key-change-in-production-min-32-bytes}
+      - Jwt__Issuer=HomeFlow
+      - Jwt__Audience=HomeFlow
+      - Jwt__ExpirationMinutes=60
+
+volumes:
+  pgdata:

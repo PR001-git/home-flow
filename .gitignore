@@ -22,10 +22,12 @@ dist/
 .env.local
 appsettings.*.json
 !appsettings.json
-!appsettings.Development.json
 
 # Docker volumes
 pgdata/
+
+# Temp / scratch files
+docs/conversations/temp.md
 
 # OS
 .DS_Store
