@@ -1,0 +1,19 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY *.slnx ./
+COPY src/HomeFlow.Domain/HomeFlow.Domain.csproj src/HomeFlow.Domain/
+COPY src/HomeFlow.Application/HomeFlow.Application.csproj src/HomeFlow.Application/
+COPY src/HomeFlow.Infrastructure/HomeFlow.Infrastructure.csproj src/HomeFlow.Infrastructure/
+COPY src/HomeFlow.API/HomeFlow.API.csproj src/HomeFlow.API/
+RUN dotnet restore
+
+COPY src/ src/
+WORKDIR /src/src/HomeFlow.API
+RUN dotnet publish -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=build /app/publish .
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "HomeFlow.API.dll"]
