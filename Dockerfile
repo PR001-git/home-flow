@@ -12,8 +12,7 @@ COPY tests/HomeFlow.Infrastructure.Tests/HomeFlow.Infrastructure.Tests.csproj te
 RUN dotnet restore
 
 COPY src/ src/
-WORKDIR /src/src/HomeFlow.API
-RUN dotnet publish -c Release -o /app/publish --no-restore
+RUN dotnet publish src/HomeFlow.API/HomeFlow.API.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
