@@ -22,7 +22,6 @@ dist/
 .env.local
 appsettings.*.json
 !appsettings.json
-!appsettings.Development.json
 
 # Docker volumes
 pgdata/
