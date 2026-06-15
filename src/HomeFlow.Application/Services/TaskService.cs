@@ -67,6 +67,9 @@ public class TaskService(ITaskRepository taskRepository, IUserRepository userRep
         if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 200)
             throw new ValidationException("Invalid title: must be between 1 and 200 characters.");
 
+        if (request.DueDate.HasValue && request.DueDate.Value < DateTime.UtcNow)
+            throw new ValidationException("Invalid due date: must be in the future.");
+
         if (request.AssignedToUserId.HasValue)
         {
             var user = await userRepository.GetByIdAsync(request.AssignedToUserId.Value);

@@ -33,8 +33,15 @@ public class TaskRepository(IDbConnectionFactory db) : ITaskRepository
         }
         if (filter?.Status.HasValue == true)
         {
-            sql += " AND status = @status";
-            parameters.Add(new NpgsqlParameter("status", (short)filter.Status.Value));
+            if (filter.Status.Value == HouseholdTaskStatus.Overdue)
+            {
+                sql += " AND status IN (0, 1) AND due_date < NOW()";
+            }
+            else
+            {
+                sql += " AND status = @status";
+                parameters.Add(new NpgsqlParameter("status", (short)filter.Status.Value));
+            }
         }
         if (filter?.TaskType.HasValue == true)
         {

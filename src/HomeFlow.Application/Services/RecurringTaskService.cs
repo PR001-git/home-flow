@@ -145,7 +145,10 @@ public class RecurringTaskService(
             .OrderBy(e => e.RotationOrder)
             .ToList();
 
-        var currentEntry = entries[template.CurrentAssigneeIndex];
+        if (entries.Count == 0)
+            throw new ValidationException("Cannot generate a task: the template has no rotation members.");
+
+        var currentEntry = entries[template.CurrentAssigneeIndex % entries.Count];
 
         var task = new HouseholdTask
         {

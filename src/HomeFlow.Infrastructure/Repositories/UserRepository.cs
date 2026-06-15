@@ -22,7 +22,7 @@ public class UserRepository(IDbConnectionFactory db) : IUserRepository
         await using var conn = db.CreateConnection();
         await conn.OpenAsync();
         await using var cmd = new NpgsqlCommand(
-            "SELECT id, username, email, password_hash, display_name, created_at FROM users WHERE username = @username", conn);
+            "SELECT id, username, email, password_hash, display_name, created_at FROM users WHERE LOWER(username) = LOWER(@username)", conn);
         cmd.Parameters.AddWithValue("username", username);
         return await ReadUserAsync(cmd);
     }
