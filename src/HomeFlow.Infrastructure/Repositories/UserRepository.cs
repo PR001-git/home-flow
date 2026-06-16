@@ -57,6 +57,30 @@ public class UserRepository(IDbConnectionFactory db) : IUserRepository
         return user;
     }
 
+    public async Task<IEnumerable<User>> GetAllAsync()
+    {
+        await using var conn = db.CreateConnection();
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand(
+            "SELECT id, username, email, password_hash, display_name, created_at FROM users ORDER BY display_name", conn);
+
+        var users = new List<User>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            users.Add(new User
+            {
+                Id = reader.Get<Guid>("id"),
+                Username = reader.Get<string>("username"),
+                Email = reader.Get<string>("email"),
+                PasswordHash = reader.Get<string>("password_hash"),
+                DisplayName = reader.Get<string>("display_name"),
+                CreatedAt = reader.Get<DateTime>("created_at")
+            });
+        }
+        return users;
+    }
+
     private static async Task<User?> ReadUserAsync(NpgsqlCommand cmd)
     {
         await using var reader = await cmd.ExecuteReaderAsync();

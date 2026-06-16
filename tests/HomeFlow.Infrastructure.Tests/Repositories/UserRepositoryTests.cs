@@ -97,4 +97,16 @@ public class UserRepositoryTests : IAsyncLifetime
         result.Should().NotBeNull();
         result!.Email.Should().Be("byemail@example.com");
     }
+
+    [Fact]
+    public async Task GetAllAsync_ReturnsAllUsers()
+    {
+        await _sut.CreateAsync(new User { Username = "zoe", Email = "zoe@test.com", PasswordHash = "h", DisplayName = "Zoe", CreatedAt = DateTime.UtcNow });
+        await _sut.CreateAsync(new User { Username = "amy", Email = "amy@test.com", PasswordHash = "h", DisplayName = "Amy", CreatedAt = DateTime.UtcNow });
+
+        var users = (await _sut.GetAllAsync()).ToList();
+
+        users.Should().HaveCountGreaterThanOrEqualTo(2);
+        users.Select(u => u.DisplayName).Should().Contain(new[] { "Amy", "Zoe" });
+    }
 }
