@@ -3,6 +3,7 @@ import { TaskStatus, TaskType, type Task } from '../types';
 import { useTasks, useCompleteTask, useDeleteTask, type TaskFilter } from '../hooks/useTasks';
 import { useUsers } from '../hooks/useUsers';
 import { TaskCard } from '../components/Tasks/TaskCard';
+import { TaskForm } from '../components/Tasks/TaskForm';
 
 export function TasksPage() {
   const [filter, setFilter] = useState<TaskFilter>({});
@@ -54,14 +55,9 @@ export function TasksPage() {
         </div>
       )}
 
-      {/* TaskForm modal wired in Task B9 */}
       {(creating || editing) && (
-        <TaskFormPlaceholder onClose={() => { setCreating(false); setEditing(null); }} />
+        <TaskForm task={editing} onClose={() => { setCreating(false); setEditing(null); }} />
       )}
     </div>
   );
-}
-
-function TaskFormPlaceholder({ onClose }: { onClose: () => void }) {
-  return <div className="fixed inset-0" onClick={onClose} />;
 }
