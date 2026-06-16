@@ -1,5 +1,8 @@
-export enum TaskStatus { Pending = 0, InProgress = 1, Completed = 2, Overdue = 3 }
-export enum TaskType { OneOff = 0, Recurring = 1 }
+export const TaskStatus = { Pending: 0, InProgress: 1, Completed: 2, Overdue: 3 } as const;
+export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
+
+export const TaskType = { OneOff: 0, Recurring: 1 } as const;
+export type TaskType = typeof TaskType[keyof typeof TaskType];
 
 export interface User { id: string; username: string; displayName: string }
 
