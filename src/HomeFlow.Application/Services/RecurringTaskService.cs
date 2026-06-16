@@ -11,7 +11,8 @@ public class RecurringTaskService(
     IRecurringTaskTemplateRepository templateRepository,
     IRotationEntryRepository rotationEntryRepository,
     ITaskRepository taskRepository,
-    IUserRepository userRepository)
+    IUserRepository userRepository,
+    IUnitOfWork unitOfWork)
 {
     public async Task<RecurringTaskResponse> CreateTemplateAsync(CreateRecurringTaskRequest request)
     {
@@ -40,20 +41,31 @@ public class RecurringTaskService(
             CreatedAt = DateTime.UtcNow
         };
 
-        var created = await templateRepository.CreateAsync(template);
-
-        for (var i = 0; i < request.UserIdsInOrder.Count; i++)
+        await unitOfWork.BeginTransactionAsync();
+        try
         {
-            await rotationEntryRepository.CreateAsync(new RotationEntry
-            {
-                TemplateId = created.Id,
-                UserId = request.UserIdsInOrder[i],
-                RotationOrder = i
-            });
-        }
+            var created = await templateRepository.CreateAsync(template);
 
-        var entries = await rotationEntryRepository.GetByTemplateIdAsync(created.Id);
-        return MapToResponse(created, entries);
+            for (var i = 0; i < request.UserIdsInOrder.Count; i++)
+            {
+                await rotationEntryRepository.CreateAsync(new RotationEntry
+                {
+                    TemplateId = created.Id,
+                    UserId = request.UserIdsInOrder[i],
+                    RotationOrder = i
+                });
+            }
+
+            await unitOfWork.CommitAsync();
+
+            var entries = await rotationEntryRepository.GetByTemplateIdAsync(created.Id);
+            return MapToResponse(created, entries);
+        }
+        catch
+        {
+            await unitOfWork.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<IEnumerable<RecurringTaskResponse>> GetAllTemplatesAsync()
@@ -92,12 +104,6 @@ public class RecurringTaskService(
         if (request.FrequencyDays < 1)
             throw new ValidationException("Invalid frequency: must be at least 1 day.");
 
-        template.Title = request.Title;
-        template.Description = request.Description;
-        template.FrequencyDays = request.FrequencyDays;
-
-        var updated = await templateRepository.UpdateAsync(template);
-
         if (request.UserIdsInOrder is not null && request.UserIdsInOrder.Count > 0)
         {
             foreach (var userId in request.UserIdsInOrder)
@@ -106,24 +112,44 @@ public class RecurringTaskService(
                 if (user is null)
                     throw new ValidationException($"Invalid user: user with ID {userId} not found.");
             }
-
-            await rotationEntryRepository.DeleteByTemplateIdAsync(id);
-            for (var i = 0; i < request.UserIdsInOrder.Count; i++)
-            {
-                await rotationEntryRepository.CreateAsync(new RotationEntry
-                {
-                    TemplateId = id,
-                    UserId = request.UserIdsInOrder[i],
-                    RotationOrder = i
-                });
-            }
-
-            updated.CurrentAssigneeIndex = 0;
-            updated = await templateRepository.UpdateAsync(updated);
         }
 
-        var entries = await rotationEntryRepository.GetByTemplateIdAsync(id);
-        return MapToResponse(updated, entries);
+        template.Title = request.Title;
+        template.Description = request.Description;
+        template.FrequencyDays = request.FrequencyDays;
+
+        await unitOfWork.BeginTransactionAsync();
+        try
+        {
+            var updated = await templateRepository.UpdateAsync(template);
+
+            if (request.UserIdsInOrder is not null && request.UserIdsInOrder.Count > 0)
+            {
+                await rotationEntryRepository.DeleteByTemplateIdAsync(id);
+                for (var i = 0; i < request.UserIdsInOrder.Count; i++)
+                {
+                    await rotationEntryRepository.CreateAsync(new RotationEntry
+                    {
+                        TemplateId = id,
+                        UserId = request.UserIdsInOrder[i],
+                        RotationOrder = i
+                    });
+                }
+
+                updated.CurrentAssigneeIndex = 0;
+                updated = await templateRepository.UpdateAsync(updated);
+            }
+
+            await unitOfWork.CommitAsync();
+
+            var entries = await rotationEntryRepository.GetByTemplateIdAsync(id);
+            return MapToResponse(updated, entries);
+        }
+        catch
+        {
+            await unitOfWork.RollbackAsync();
+            throw;
+        }
     }
 
     public async System.Threading.Tasks.Task DeleteTemplateAsync(Guid id)
@@ -163,11 +189,23 @@ public class RecurringTaskService(
             CreatedAt = DateTime.UtcNow
         };
 
-        var createdTask = await taskRepository.CreateAsync(task);
+        await unitOfWork.BeginTransactionAsync();
+        HouseholdTask createdTask;
+        try
+        {
+            createdTask = await taskRepository.CreateAsync(task);
 
-        template.CurrentAssigneeIndex = (template.CurrentAssigneeIndex + 1) % entries.Count;
-        template.LastGeneratedDate = DateTime.UtcNow;
-        await templateRepository.UpdateAsync(template);
+            template.CurrentAssigneeIndex = (template.CurrentAssigneeIndex + 1) % entries.Count;
+            template.LastGeneratedDate = DateTime.UtcNow;
+            await templateRepository.UpdateAsync(template);
+
+            await unitOfWork.CommitAsync();
+        }
+        catch
+        {
+            await unitOfWork.RollbackAsync();
+            throw;
+        }
 
         return new TaskResponse(
             createdTask.Id, createdTask.Title, createdTask.Description,

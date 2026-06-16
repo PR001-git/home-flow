@@ -5,14 +5,13 @@ using Npgsql;
 
 namespace HomeFlow.Infrastructure.Repositories;
 
-public class RotationEntryRepository(IDbConnectionFactory db) : IRotationEntryRepository
+public class RotationEntryRepository(UnitOfWork db) : IRotationEntryRepository
 {
     public async Task<IEnumerable<RotationEntry>> GetByTemplateIdAsync(Guid templateId)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
+        var conn = await db.GetConnectionAsync();
         await using var cmd = new NpgsqlCommand(
-            "SELECT id, template_id, user_id, rotation_order FROM rotation_entries WHERE template_id = @templateId ORDER BY rotation_order", conn);
+            "SELECT id, template_id, user_id, rotation_order FROM rotation_entries WHERE template_id = @templateId ORDER BY rotation_order", conn, db.Transaction);
         cmd.Parameters.AddWithValue("templateId", templateId);
 
         var results = new List<RotationEntry>();
@@ -26,14 +25,13 @@ public class RotationEntryRepository(IDbConnectionFactory db) : IRotationEntryRe
 
     public async System.Threading.Tasks.Task CreateAsync(RotationEntry entry)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
+        var conn = await db.GetConnectionAsync();
         await using var cmd = new NpgsqlCommand(
             """
             INSERT INTO rotation_entries (template_id, user_id, rotation_order)
             VALUES (@templateId, @userId, @rotationOrder)
             RETURNING id
-            """, conn);
+            """, conn, db.Transaction);
         cmd.Parameters.AddWithValue("templateId", entry.TemplateId);
         cmd.Parameters.AddWithValue("userId", entry.UserId);
         cmd.Parameters.AddWithValue("rotationOrder", entry.RotationOrder);
@@ -43,10 +41,9 @@ public class RotationEntryRepository(IDbConnectionFactory db) : IRotationEntryRe
 
     public async System.Threading.Tasks.Task DeleteByTemplateIdAsync(Guid templateId)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
+        var conn = await db.GetConnectionAsync();
         await using var cmd = new NpgsqlCommand(
-            "DELETE FROM rotation_entries WHERE template_id = @templateId", conn);
+            "DELETE FROM rotation_entries WHERE template_id = @templateId", conn, db.Transaction);
         cmd.Parameters.AddWithValue("templateId", templateId);
         await cmd.ExecuteNonQueryAsync();
     }
