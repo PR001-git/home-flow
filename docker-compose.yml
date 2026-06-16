@@ -29,5 +29,12 @@ services:
       - Jwt__Audience=HomeFlow
       - Jwt__ExpirationMinutes=60
 
+  ui:
+    build: ./home-flow-ui
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
 volumes:
   pgdata:
