@@ -15,6 +15,7 @@ public class RecurringTaskServiceTests
     private readonly IRotationEntryRepository _rotationEntryRepository;
     private readonly ITaskRepository _taskRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly RecurringTaskService _sut;
 
     public RecurringTaskServiceTests()
@@ -23,7 +24,8 @@ public class RecurringTaskServiceTests
         _rotationEntryRepository = Substitute.For<IRotationEntryRepository>();
         _taskRepository = Substitute.For<ITaskRepository>();
         _userRepository = Substitute.For<IUserRepository>();
-        _sut = new RecurringTaskService(_templateRepository, _rotationEntryRepository, _taskRepository, _userRepository);
+        _unitOfWork = Substitute.For<IUnitOfWork>();
+        _sut = new RecurringTaskService(_templateRepository, _rotationEntryRepository, _taskRepository, _userRepository, _unitOfWork);
     }
 
     [Fact]
@@ -53,6 +55,33 @@ public class RecurringTaskServiceTests
         result.FrequencyDays.Should().Be(7);
         result.RotationEntries.Should().HaveCount(2);
         await _rotationEntryRepository.Received(2).CreateAsync(Arg.Any<RotationEntry>());
+        await _unitOfWork.Received(1).BeginTransactionAsync();
+        await _unitOfWork.Received(1).CommitAsync();
+        await _unitOfWork.DidNotReceive().RollbackAsync();
+    }
+
+    [Fact]
+    public async Task CreateTemplate_RotationEntryInsertFails_RollsBackAndDoesNotCommit()
+    {
+        var user1 = Guid.NewGuid();
+        var request = new CreateRecurringTaskRequest("Clean kitchen", "Deep clean", 7, new List<Guid> { user1 });
+
+        _userRepository.GetByIdAsync(user1).Returns(new User { Id = user1 });
+        _templateRepository.CreateAsync(Arg.Any<RecurringTaskTemplate>()).Returns(callInfo =>
+        {
+            var t = callInfo.Arg<RecurringTaskTemplate>();
+            t.Id = Guid.NewGuid();
+            return t;
+        });
+        _rotationEntryRepository.CreateAsync(Arg.Any<RotationEntry>())
+            .Returns(System.Threading.Tasks.Task.FromException(new InvalidOperationException("insert failed")));
+
+        var act = () => _sut.CreateTemplateAsync(request);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        await _unitOfWork.Received(1).BeginTransactionAsync();
+        await _unitOfWork.Received(1).RollbackAsync();
+        await _unitOfWork.DidNotReceive().CommitAsync();
     }
 
     [Fact]
@@ -94,6 +123,8 @@ public class RecurringTaskServiceTests
         result.TaskType.Should().Be(HouseholdTaskType.Recurring);
         result.TemplateId.Should().Be(templateId);
         await _templateRepository.Received(1).UpdateAsync(Arg.Is<RecurringTaskTemplate>(t => t.CurrentAssigneeIndex == 2));
+        await _unitOfWork.Received(1).BeginTransactionAsync();
+        await _unitOfWork.Received(1).CommitAsync();
     }
 
     [Fact]

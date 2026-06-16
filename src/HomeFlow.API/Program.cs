@@ -24,6 +24,9 @@ var dbFactory = new NpgsqlConnectionFactory(connectionString);
 builder.Services.AddSingleton<IDbConnectionFactory>(dbFactory);
 builder.Services.AddSingleton(new MigrationRunner(dbFactory));
 
+builder.Services.AddScoped<UnitOfWork>();
+builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<UnitOfWork>());
+
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<IRecurringTaskTemplateRepository, RecurringTaskTemplateRepository>();

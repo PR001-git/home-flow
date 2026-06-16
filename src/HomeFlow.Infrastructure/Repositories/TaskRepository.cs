@@ -6,22 +6,20 @@ using Npgsql;
 
 namespace HomeFlow.Infrastructure.Repositories;
 
-public class TaskRepository(IDbConnectionFactory db) : ITaskRepository
+public class TaskRepository(UnitOfWork db) : ITaskRepository
 {
     public async Task<HouseholdTask?> GetByIdAsync(Guid id)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
+        var conn = await db.GetConnectionAsync();
         await using var cmd = new NpgsqlCommand(
-            "SELECT id, title, description, task_type, status, due_date, assigned_to_user_id, created_by_user_id, template_id, created_at, completed_at FROM household_tasks WHERE id = @id", conn);
+            "SELECT id, title, description, task_type, status, due_date, assigned_to_user_id, created_by_user_id, template_id, created_at, completed_at FROM household_tasks WHERE id = @id", conn, db.Transaction);
         cmd.Parameters.AddWithValue("id", id);
         return await ReadTaskAsync(cmd);
     }
 
     public async Task<IEnumerable<HouseholdTask>> GetAllAsync(TaskFilter? filter)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
+        var conn = await db.GetConnectionAsync();
 
         var sql = "SELECT id, title, description, task_type, status, due_date, assigned_to_user_id, created_by_user_id, template_id, created_at, completed_at FROM household_tasks WHERE 1=1";
         var parameters = new List<NpgsqlParameter>();
@@ -51,7 +49,7 @@ public class TaskRepository(IDbConnectionFactory db) : ITaskRepository
 
         sql += " ORDER BY created_at DESC";
 
-        await using var cmd = new NpgsqlCommand(sql, conn);
+        await using var cmd = new NpgsqlCommand(sql, conn, db.Transaction);
         cmd.Parameters.AddRange(parameters.ToArray());
 
         var tasks = new List<HouseholdTask>();
@@ -65,14 +63,13 @@ public class TaskRepository(IDbConnectionFactory db) : ITaskRepository
 
     public async Task<HouseholdTask> CreateAsync(HouseholdTask task)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
+        var conn = await db.GetConnectionAsync();
         await using var cmd = new NpgsqlCommand(
             """
             INSERT INTO household_tasks (title, description, task_type, status, due_date, assigned_to_user_id, created_by_user_id, template_id, created_at, completed_at)
             VALUES (@title, @description, @taskType, @status, @dueDate, @assignedTo, @createdBy, @templateId, @createdAt, @completedAt)
             RETURNING id
-            """, conn);
+            """, conn, db.Transaction);
         cmd.Parameters.AddWithValue("title", task.Title);
         cmd.Parameters.AddWithValue("description", (object?)task.Description ?? DBNull.Value);
         cmd.Parameters.AddWithValue("taskType", (short)task.TaskType);
@@ -90,15 +87,14 @@ public class TaskRepository(IDbConnectionFactory db) : ITaskRepository
 
     public async Task<HouseholdTask> UpdateAsync(HouseholdTask task)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
+        var conn = await db.GetConnectionAsync();
         await using var cmd = new NpgsqlCommand(
             """
             UPDATE household_tasks
             SET title = @title, description = @description, status = @status,
                 due_date = @dueDate, assigned_to_user_id = @assignedTo, completed_at = @completedAt
             WHERE id = @id
-            """, conn);
+            """, conn, db.Transaction);
         cmd.Parameters.AddWithValue("id", task.Id);
         cmd.Parameters.AddWithValue("title", task.Title);
         cmd.Parameters.AddWithValue("description", (object?)task.Description ?? DBNull.Value);
@@ -113,9 +109,8 @@ public class TaskRepository(IDbConnectionFactory db) : ITaskRepository
 
     public async System.Threading.Tasks.Task DeleteAsync(Guid id)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
-        await using var cmd = new NpgsqlCommand("DELETE FROM household_tasks WHERE id = @id", conn);
+        var conn = await db.GetConnectionAsync();
+        await using var cmd = new NpgsqlCommand("DELETE FROM household_tasks WHERE id = @id", conn, db.Transaction);
         cmd.Parameters.AddWithValue("id", id);
         await cmd.ExecuteNonQueryAsync();
     }
@@ -131,17 +126,17 @@ public class TaskRepository(IDbConnectionFactory db) : ITaskRepository
     {
         return new HouseholdTask
         {
-            Id = reader.GetGuid(0),
-            Title = reader.GetString(1),
-            Description = reader.IsDBNull(2) ? null : reader.GetString(2),
-            TaskType = (HouseholdTaskType)reader.GetInt16(3),
-            Status = (HouseholdTaskStatus)reader.GetInt16(4),
-            DueDate = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
-            AssignedToUserId = reader.IsDBNull(6) ? null : reader.GetGuid(6),
-            CreatedByUserId = reader.GetGuid(7),
-            TemplateId = reader.IsDBNull(8) ? null : reader.GetGuid(8),
-            CreatedAt = reader.GetDateTime(9),
-            CompletedAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10)
+            Id = reader.Get<Guid>("id"),
+            Title = reader.Get<string>("title"),
+            Description = reader.GetNullableString("description"),
+            TaskType = reader.GetEnum<HouseholdTaskType>("task_type"),
+            Status = reader.GetEnum<HouseholdTaskStatus>("status"),
+            DueDate = reader.GetNullable<DateTime>("due_date"),
+            AssignedToUserId = reader.GetNullable<Guid>("assigned_to_user_id"),
+            CreatedByUserId = reader.Get<Guid>("created_by_user_id"),
+            TemplateId = reader.GetNullable<Guid>("template_id"),
+            CreatedAt = reader.Get<DateTime>("created_at"),
+            CompletedAt = reader.GetNullable<DateTime>("completed_at")
         };
     }
 }

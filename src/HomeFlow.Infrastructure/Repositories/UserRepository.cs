@@ -64,12 +64,12 @@ public class UserRepository(IDbConnectionFactory db) : IUserRepository
 
         return new User
         {
-            Id = reader.GetGuid(0),
-            Username = reader.GetString(1),
-            Email = reader.GetString(2),
-            PasswordHash = reader.GetString(3),
-            DisplayName = reader.GetString(4),
-            CreatedAt = reader.GetDateTime(5)
+            Id = reader.Get<Guid>("id"),
+            Username = reader.Get<string>("username"),
+            Email = reader.Get<string>("email"),
+            PasswordHash = reader.Get<string>("password_hash"),
+            DisplayName = reader.Get<string>("display_name"),
+            CreatedAt = reader.Get<DateTime>("created_at")
         };
     }
 }

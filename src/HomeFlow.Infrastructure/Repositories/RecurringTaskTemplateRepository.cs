@@ -5,14 +5,13 @@ using Npgsql;
 
 namespace HomeFlow.Infrastructure.Repositories;
 
-public class RecurringTaskTemplateRepository(IDbConnectionFactory db) : IRecurringTaskTemplateRepository
+public class RecurringTaskTemplateRepository(UnitOfWork db) : IRecurringTaskTemplateRepository
 {
     public async Task<RecurringTaskTemplate?> GetByIdAsync(Guid id)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
+        var conn = await db.GetConnectionAsync();
         await using var cmd = new NpgsqlCommand(
-            "SELECT id, title, description, frequency_days, current_assignee_index, last_generated_date, created_at FROM recurring_task_templates WHERE id = @id", conn);
+            "SELECT id, title, description, frequency_days, current_assignee_index, last_generated_date, created_at FROM recurring_task_templates WHERE id = @id", conn, db.Transaction);
         cmd.Parameters.AddWithValue("id", id);
         await using var reader = await cmd.ExecuteReaderAsync();
         if (!await reader.ReadAsync()) return null;
@@ -21,10 +20,9 @@ public class RecurringTaskTemplateRepository(IDbConnectionFactory db) : IRecurri
 
     public async Task<IEnumerable<RecurringTaskTemplate>> GetAllAsync()
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
+        var conn = await db.GetConnectionAsync();
         await using var cmd = new NpgsqlCommand(
-            "SELECT id, title, description, frequency_days, current_assignee_index, last_generated_date, created_at FROM recurring_task_templates ORDER BY created_at DESC", conn);
+            "SELECT id, title, description, frequency_days, current_assignee_index, last_generated_date, created_at FROM recurring_task_templates ORDER BY created_at DESC", conn, db.Transaction);
         var results = new List<RecurringTaskTemplate>();
         await using var reader = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync())
@@ -34,14 +32,13 @@ public class RecurringTaskTemplateRepository(IDbConnectionFactory db) : IRecurri
 
     public async Task<RecurringTaskTemplate> CreateAsync(RecurringTaskTemplate template)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
+        var conn = await db.GetConnectionAsync();
         await using var cmd = new NpgsqlCommand(
             """
             INSERT INTO recurring_task_templates (title, description, frequency_days, current_assignee_index, last_generated_date, created_at)
             VALUES (@title, @description, @frequencyDays, @currentAssigneeIndex, @lastGeneratedDate, @createdAt)
             RETURNING id
-            """, conn);
+            """, conn, db.Transaction);
         cmd.Parameters.AddWithValue("title", template.Title);
         cmd.Parameters.AddWithValue("description", (object?)template.Description ?? DBNull.Value);
         cmd.Parameters.AddWithValue("frequencyDays", template.FrequencyDays);
@@ -55,15 +52,14 @@ public class RecurringTaskTemplateRepository(IDbConnectionFactory db) : IRecurri
 
     public async Task<RecurringTaskTemplate> UpdateAsync(RecurringTaskTemplate template)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
+        var conn = await db.GetConnectionAsync();
         await using var cmd = new NpgsqlCommand(
             """
             UPDATE recurring_task_templates
             SET title = @title, description = @description, frequency_days = @frequencyDays,
                 current_assignee_index = @currentAssigneeIndex, last_generated_date = @lastGeneratedDate
             WHERE id = @id
-            """, conn);
+            """, conn, db.Transaction);
         cmd.Parameters.AddWithValue("id", template.Id);
         cmd.Parameters.AddWithValue("title", template.Title);
         cmd.Parameters.AddWithValue("description", (object?)template.Description ?? DBNull.Value);
@@ -77,9 +73,8 @@ public class RecurringTaskTemplateRepository(IDbConnectionFactory db) : IRecurri
 
     public async System.Threading.Tasks.Task DeleteAsync(Guid id)
     {
-        await using var conn = db.CreateConnection();
-        await conn.OpenAsync();
-        await using var cmd = new NpgsqlCommand("DELETE FROM recurring_task_templates WHERE id = @id", conn);
+        var conn = await db.GetConnectionAsync();
+        await using var cmd = new NpgsqlCommand("DELETE FROM recurring_task_templates WHERE id = @id", conn, db.Transaction);
         cmd.Parameters.AddWithValue("id", id);
         await cmd.ExecuteNonQueryAsync();
     }
@@ -88,13 +83,13 @@ public class RecurringTaskTemplateRepository(IDbConnectionFactory db) : IRecurri
     {
         return new RecurringTaskTemplate
         {
-            Id = reader.GetGuid(0),
-            Title = reader.GetString(1),
-            Description = reader.IsDBNull(2) ? null : reader.GetString(2),
-            FrequencyDays = reader.GetInt32(3),
-            CurrentAssigneeIndex = reader.GetInt32(4),
-            LastGeneratedDate = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
-            CreatedAt = reader.GetDateTime(6)
+            Id = reader.Get<Guid>("id"),
+            Title = reader.Get<string>("title"),
+            Description = reader.GetNullableString("description"),
+            FrequencyDays = reader.Get<int>("frequency_days"),
+            CurrentAssigneeIndex = reader.Get<int>("current_assignee_index"),
+            LastGeneratedDate = reader.GetNullable<DateTime>("last_generated_date"),
+            CreatedAt = reader.Get<DateTime>("created_at")
         };
     }
 }
