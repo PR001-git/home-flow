@@ -9,6 +9,7 @@ namespace HomeFlow.Infrastructure.Auth;
 
 public class JwtTokenProvider(string key, string issuer, string audience, int expirationMinutes) : IJwtTokenProvider
 {
+    /// <summary>Generates a signed HS256 JWT containing the user's ID, username, and email claims.</summary>
     public string GenerateToken(User user)
     {
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));

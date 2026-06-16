@@ -34,6 +34,8 @@ builder.Services.AddScoped<IRotationEntryRepository, RotationEntryRepository>();
 
 builder.Services.AddScoped<IJwtTokenProvider>(_ => new JwtTokenProvider(jwtKey, jwtIssuer, jwtAudience, jwtExpiration));
 
+builder.Services.AddSingleton(TimeProvider.System);
+
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<TaskService>();
 builder.Services.AddScoped<RecurringTaskService>();

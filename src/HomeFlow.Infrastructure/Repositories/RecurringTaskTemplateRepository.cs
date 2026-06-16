@@ -7,32 +7,35 @@ namespace HomeFlow.Infrastructure.Repositories;
 
 public class RecurringTaskTemplateRepository(UnitOfWork db) : IRecurringTaskTemplateRepository
 {
-    public async Task<RecurringTaskTemplate?> GetByIdAsync(Guid id)
+    /// <summary>Returns the template with the given ID, or <see langword="null"/> if not found.</summary>
+    public async Task<RecurringTaskTemplate?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT id, title, description, frequency_days, current_assignee_index, last_generated_date, created_at FROM recurring_task_templates WHERE id = @id", conn, db.Transaction);
         cmd.Parameters.AddWithValue("id", id);
-        await using var reader = await cmd.ExecuteReaderAsync();
-        if (!await reader.ReadAsync()) return null;
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct)) return null;
         return MapFromReader(reader);
     }
 
-    public async Task<IEnumerable<RecurringTaskTemplate>> GetAllAsync()
+    /// <summary>Returns all recurring task templates ordered by creation date descending.</summary>
+    public async Task<IEnumerable<RecurringTaskTemplate>> GetAllAsync(CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT id, title, description, frequency_days, current_assignee_index, last_generated_date, created_at FROM recurring_task_templates ORDER BY created_at DESC", conn, db.Transaction);
         var results = new List<RecurringTaskTemplate>();
-        await using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
             results.Add(MapFromReader(reader));
         return results;
     }
 
-    public async Task<RecurringTaskTemplate> CreateAsync(RecurringTaskTemplate template)
+    /// <summary>Inserts a new template row and populates the entity's generated ID.</summary>
+    public async Task<RecurringTaskTemplate> CreateAsync(RecurringTaskTemplate template, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(
             """
             INSERT INTO recurring_task_templates (title, description, frequency_days, current_assignee_index, last_generated_date, created_at)
@@ -46,13 +49,14 @@ public class RecurringTaskTemplateRepository(UnitOfWork db) : IRecurringTaskTemp
         cmd.Parameters.AddWithValue("lastGeneratedDate", (object?)template.LastGeneratedDate ?? DBNull.Value);
         cmd.Parameters.AddWithValue("createdAt", template.CreatedAt);
 
-        template.Id = (Guid)(await cmd.ExecuteScalarAsync())!;
+        template.Id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
         return template;
     }
 
-    public async Task<RecurringTaskTemplate> UpdateAsync(RecurringTaskTemplate template)
+    /// <summary>Updates the mutable columns of an existing template row.</summary>
+    public async Task<RecurringTaskTemplate> UpdateAsync(RecurringTaskTemplate template, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(
             """
             UPDATE recurring_task_templates
@@ -67,16 +71,17 @@ public class RecurringTaskTemplateRepository(UnitOfWork db) : IRecurringTaskTemp
         cmd.Parameters.AddWithValue("currentAssigneeIndex", template.CurrentAssigneeIndex);
         cmd.Parameters.AddWithValue("lastGeneratedDate", (object?)template.LastGeneratedDate ?? DBNull.Value);
 
-        await cmd.ExecuteNonQueryAsync();
+        await cmd.ExecuteNonQueryAsync(ct);
         return template;
     }
 
-    public async System.Threading.Tasks.Task DeleteAsync(Guid id)
+    /// <summary>Deletes the template row with the given ID.</summary>
+    public async System.Threading.Tasks.Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand("DELETE FROM recurring_task_templates WHERE id = @id", conn, db.Transaction);
         cmd.Parameters.AddWithValue("id", id);
-        await cmd.ExecuteNonQueryAsync();
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 
     private static RecurringTaskTemplate MapFromReader(NpgsqlDataReader reader)

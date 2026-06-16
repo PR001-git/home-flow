@@ -14,7 +14,7 @@ public class RecurringTaskService(
     IUserRepository userRepository,
     IUnitOfWork unitOfWork)
 {
-    public async Task<RecurringTaskResponse> CreateTemplateAsync(CreateRecurringTaskRequest request)
+    public async Task<RecurringTaskResponse> CreateTemplateAsync(CreateRecurringTaskRequest request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 200)
             throw new ValidationException("Invalid title: must be between 1 and 200 characters.");
@@ -27,7 +27,7 @@ public class RecurringTaskService(
 
         foreach (var userId in request.UserIdsInOrder)
         {
-            var user = await userRepository.GetByIdAsync(userId);
+            var user = await userRepository.GetByIdAsync(userId, ct);
             if (user is null)
                 throw new ValidationException($"Invalid user: user with ID {userId} not found.");
         }
@@ -41,10 +41,10 @@ public class RecurringTaskService(
             CreatedAt = DateTime.UtcNow
         };
 
-        await unitOfWork.BeginTransactionAsync();
+        await unitOfWork.BeginTransactionAsync(ct);
         try
         {
-            var created = await templateRepository.CreateAsync(template);
+            var created = await templateRepository.CreateAsync(template, ct);
 
             for (var i = 0; i < request.UserIdsInOrder.Count; i++)
             {
@@ -53,48 +53,48 @@ public class RecurringTaskService(
                     TemplateId = created.Id,
                     UserId = request.UserIdsInOrder[i],
                     RotationOrder = i
-                });
+                }, ct);
             }
 
-            await unitOfWork.CommitAsync();
+            await unitOfWork.CommitAsync(ct);
 
-            var entries = await rotationEntryRepository.GetByTemplateIdAsync(created.Id);
+            var entries = await rotationEntryRepository.GetByTemplateIdAsync(created.Id, ct);
             return MapToResponse(created, entries);
         }
         catch
         {
-            await unitOfWork.RollbackAsync();
+            await unitOfWork.RollbackAsync(ct);
             throw;
         }
     }
 
-    public async Task<IEnumerable<RecurringTaskResponse>> GetAllTemplatesAsync()
+    public async Task<IEnumerable<RecurringTaskResponse>> GetAllTemplatesAsync(CancellationToken ct = default)
     {
-        var templates = await templateRepository.GetAllAsync();
+        var templates = await templateRepository.GetAllAsync(ct);
         var results = new List<RecurringTaskResponse>();
 
         foreach (var template in templates)
         {
-            var entries = await rotationEntryRepository.GetByTemplateIdAsync(template.Id);
+            var entries = await rotationEntryRepository.GetByTemplateIdAsync(template.Id, ct);
             results.Add(MapToResponse(template, entries));
         }
 
         return results;
     }
 
-    public async Task<RecurringTaskResponse> GetTemplateByIdAsync(Guid id)
+    public async Task<RecurringTaskResponse> GetTemplateByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var template = await templateRepository.GetByIdAsync(id);
+        var template = await templateRepository.GetByIdAsync(id, ct);
         if (template is null)
             throw new NotFoundException($"Template with ID {id} not found.");
 
-        var entries = await rotationEntryRepository.GetByTemplateIdAsync(id);
+        var entries = await rotationEntryRepository.GetByTemplateIdAsync(id, ct);
         return MapToResponse(template, entries);
     }
 
-    public async Task<RecurringTaskResponse> UpdateTemplateAsync(Guid id, UpdateRecurringTaskRequest request)
+    public async Task<RecurringTaskResponse> UpdateTemplateAsync(Guid id, UpdateRecurringTaskRequest request, CancellationToken ct = default)
     {
-        var template = await templateRepository.GetByIdAsync(id);
+        var template = await templateRepository.GetByIdAsync(id, ct);
         if (template is null)
             throw new NotFoundException($"Template with ID {id} not found.");
 
@@ -108,7 +108,7 @@ public class RecurringTaskService(
         {
             foreach (var userId in request.UserIdsInOrder)
             {
-                var user = await userRepository.GetByIdAsync(userId);
+                var user = await userRepository.GetByIdAsync(userId, ct);
                 if (user is null)
                     throw new ValidationException($"Invalid user: user with ID {userId} not found.");
             }
@@ -118,14 +118,14 @@ public class RecurringTaskService(
         template.Description = request.Description;
         template.FrequencyDays = request.FrequencyDays;
 
-        await unitOfWork.BeginTransactionAsync();
+        await unitOfWork.BeginTransactionAsync(ct);
         try
         {
-            var updated = await templateRepository.UpdateAsync(template);
+            var updated = await templateRepository.UpdateAsync(template, ct);
 
             if (request.UserIdsInOrder is not null && request.UserIdsInOrder.Count > 0)
             {
-                await rotationEntryRepository.DeleteByTemplateIdAsync(id);
+                await rotationEntryRepository.DeleteByTemplateIdAsync(id, ct);
                 for (var i = 0; i < request.UserIdsInOrder.Count; i++)
                 {
                     await rotationEntryRepository.CreateAsync(new RotationEntry
@@ -133,41 +133,41 @@ public class RecurringTaskService(
                         TemplateId = id,
                         UserId = request.UserIdsInOrder[i],
                         RotationOrder = i
-                    });
+                    }, ct);
                 }
 
                 updated.CurrentAssigneeIndex = 0;
-                updated = await templateRepository.UpdateAsync(updated);
+                updated = await templateRepository.UpdateAsync(updated, ct);
             }
 
-            await unitOfWork.CommitAsync();
+            await unitOfWork.CommitAsync(ct);
 
-            var entries = await rotationEntryRepository.GetByTemplateIdAsync(id);
+            var entries = await rotationEntryRepository.GetByTemplateIdAsync(id, ct);
             return MapToResponse(updated, entries);
         }
         catch
         {
-            await unitOfWork.RollbackAsync();
+            await unitOfWork.RollbackAsync(ct);
             throw;
         }
     }
 
-    public async System.Threading.Tasks.Task DeleteTemplateAsync(Guid id)
+    public async System.Threading.Tasks.Task DeleteTemplateAsync(Guid id, CancellationToken ct = default)
     {
-        var template = await templateRepository.GetByIdAsync(id);
+        var template = await templateRepository.GetByIdAsync(id, ct);
         if (template is null)
             throw new NotFoundException($"Template with ID {id} not found.");
 
-        await templateRepository.DeleteAsync(id);
+        await templateRepository.DeleteAsync(id, ct);
     }
 
-    public async Task<TaskResponse> GenerateNextTaskAsync(Guid templateId)
+    public async Task<TaskResponse> GenerateNextTaskAsync(Guid templateId, CancellationToken ct = default)
     {
-        var template = await templateRepository.GetByIdAsync(templateId);
+        var template = await templateRepository.GetByIdAsync(templateId, ct);
         if (template is null)
             throw new NotFoundException($"Template with ID {templateId} not found.");
 
-        var entries = (await rotationEntryRepository.GetByTemplateIdAsync(templateId))
+        var entries = (await rotationEntryRepository.GetByTemplateIdAsync(templateId, ct))
             .OrderBy(e => e.RotationOrder)
             .ToList();
 
@@ -189,21 +189,21 @@ public class RecurringTaskService(
             CreatedAt = DateTime.UtcNow
         };
 
-        await unitOfWork.BeginTransactionAsync();
+        await unitOfWork.BeginTransactionAsync(ct);
         HouseholdTask createdTask;
         try
         {
-            createdTask = await taskRepository.CreateAsync(task);
+            createdTask = await taskRepository.CreateAsync(task, ct);
 
             template.CurrentAssigneeIndex = (template.CurrentAssigneeIndex + 1) % entries.Count;
             template.LastGeneratedDate = DateTime.UtcNow;
-            await templateRepository.UpdateAsync(template);
+            await templateRepository.UpdateAsync(template, ct);
 
-            await unitOfWork.CommitAsync();
+            await unitOfWork.CommitAsync(ct);
         }
         catch
         {
-            await unitOfWork.RollbackAsync();
+            await unitOfWork.RollbackAsync(ct);
             throw;
         }
 

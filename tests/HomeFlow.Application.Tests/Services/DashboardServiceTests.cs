@@ -11,11 +11,17 @@ public class DashboardServiceTests
 {
     private readonly ITaskRepository _taskRepository = Substitute.For<ITaskRepository>();
     private readonly IUserRepository _userRepository = Substitute.For<IUserRepository>();
+    private static readonly DateTimeOffset Now = new(2026, 6, 16, 12, 0, 0, TimeSpan.Zero);
     private readonly DashboardService _sut;
 
     public DashboardServiceTests()
     {
-        _sut = new DashboardService(_taskRepository, _userRepository);
+        _sut = new DashboardService(_taskRepository, _userRepository, new FixedTimeProvider(Now));
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 
     [Fact]
@@ -25,8 +31,8 @@ public class DashboardServiceTests
         var maria = new User { Id = Guid.NewGuid(), Username = "maria", DisplayName = "Maria" };
         _userRepository.GetAllAsync().Returns(new[] { pedro, maria });
 
-        var overdue = new HouseholdTask { Id = Guid.NewGuid(), Title = "late", Status = HouseholdTaskStatus.Pending, DueDate = DateTime.UtcNow.AddDays(-1), AssignedToUserId = pedro.Id };
-        var today = new HouseholdTask { Id = Guid.NewGuid(), Title = "today", Status = HouseholdTaskStatus.Pending, DueDate = DateTime.UtcNow.AddHours(1), AssignedToUserId = maria.Id };
+        var overdue = new HouseholdTask { Id = Guid.NewGuid(), Title = "late", Status = HouseholdTaskStatus.Pending, DueDate = Now.AddDays(-1).UtcDateTime, AssignedToUserId = pedro.Id };
+        var today = new HouseholdTask { Id = Guid.NewGuid(), Title = "today", Status = HouseholdTaskStatus.Pending, DueDate = Now.AddHours(1).UtcDateTime, AssignedToUserId = maria.Id };
         var done = new HouseholdTask { Id = Guid.NewGuid(), Title = "done", Status = HouseholdTaskStatus.Completed, AssignedToUserId = pedro.Id };
         _taskRepository.GetAllAsync(null).Returns(new[] { overdue, today, done });
 

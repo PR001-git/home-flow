@@ -8,18 +8,20 @@ namespace HomeFlow.Infrastructure.Repositories;
 
 public class TaskRepository(UnitOfWork db) : ITaskRepository
 {
-    public async Task<HouseholdTask?> GetByIdAsync(Guid id)
+    /// <summary>Returns the task with the given ID, or <see langword="null"/> if not found.</summary>
+    public async Task<HouseholdTask?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT id, title, description, task_type, status, due_date, assigned_to_user_id, created_by_user_id, template_id, created_at, completed_at FROM household_tasks WHERE id = @id", conn, db.Transaction);
         cmd.Parameters.AddWithValue("id", id);
-        return await ReadTaskAsync(cmd);
+        return await ReadTaskAsync(cmd, ct);
     }
 
-    public async Task<IEnumerable<HouseholdTask>> GetAllAsync(TaskFilter? filter)
+    /// <summary>Returns all tasks matching the optional filter, ordered by creation date descending.</summary>
+    public async Task<IEnumerable<HouseholdTask>> GetAllAsync(TaskFilter? filter, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
 
         var sql = "SELECT id, title, description, task_type, status, due_date, assigned_to_user_id, created_by_user_id, template_id, created_at, completed_at FROM household_tasks WHERE 1=1";
         var parameters = new List<NpgsqlParameter>();
@@ -53,17 +55,18 @@ public class TaskRepository(UnitOfWork db) : ITaskRepository
         cmd.Parameters.AddRange(parameters.ToArray());
 
         var tasks = new List<HouseholdTask>();
-        await using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
         {
             tasks.Add(MapFromReader(reader));
         }
         return tasks;
     }
 
-    public async Task<HouseholdTask> CreateAsync(HouseholdTask task)
+    /// <summary>Inserts a new task row and populates the entity's generated ID.</summary>
+    public async Task<HouseholdTask> CreateAsync(HouseholdTask task, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(
             """
             INSERT INTO household_tasks (title, description, task_type, status, due_date, assigned_to_user_id, created_by_user_id, template_id, created_at, completed_at)
@@ -81,13 +84,14 @@ public class TaskRepository(UnitOfWork db) : ITaskRepository
         cmd.Parameters.AddWithValue("createdAt", task.CreatedAt);
         cmd.Parameters.AddWithValue("completedAt", (object?)task.CompletedAt ?? DBNull.Value);
 
-        task.Id = (Guid)(await cmd.ExecuteScalarAsync())!;
+        task.Id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
         return task;
     }
 
-    public async Task<HouseholdTask> UpdateAsync(HouseholdTask task)
+    /// <summary>Updates the mutable columns of an existing task row.</summary>
+    public async Task<HouseholdTask> UpdateAsync(HouseholdTask task, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(
             """
             UPDATE household_tasks
@@ -103,22 +107,23 @@ public class TaskRepository(UnitOfWork db) : ITaskRepository
         cmd.Parameters.AddWithValue("assignedTo", (object?)task.AssignedToUserId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("completedAt", (object?)task.CompletedAt ?? DBNull.Value);
 
-        await cmd.ExecuteNonQueryAsync();
+        await cmd.ExecuteNonQueryAsync(ct);
         return task;
     }
 
-    public async System.Threading.Tasks.Task DeleteAsync(Guid id)
+    /// <summary>Deletes the task row with the given ID.</summary>
+    public async System.Threading.Tasks.Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand("DELETE FROM household_tasks WHERE id = @id", conn, db.Transaction);
         cmd.Parameters.AddWithValue("id", id);
-        await cmd.ExecuteNonQueryAsync();
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 
-    private static async Task<HouseholdTask?> ReadTaskAsync(NpgsqlCommand cmd)
+    private static async Task<HouseholdTask?> ReadTaskAsync(NpgsqlCommand cmd, CancellationToken ct)
     {
-        await using var reader = await cmd.ExecuteReaderAsync();
-        if (!await reader.ReadAsync()) return null;
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct)) return null;
         return MapFromReader(reader);
     }
 

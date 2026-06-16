@@ -5,6 +5,7 @@ namespace HomeFlow.Infrastructure.Database;
 
 public class MigrationRunner(IDbConnectionFactory db)
 {
+    /// <summary>Applies any pending SQL migrations embedded in the assembly, skipping those already recorded in <c>migration_history</c>.</summary>
     public async Task RunAsync()
     {
         await using var connection = db.CreateConnection();

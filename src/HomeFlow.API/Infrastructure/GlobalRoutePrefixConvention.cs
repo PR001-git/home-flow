@@ -8,6 +8,7 @@ public class GlobalRoutePrefixConvention(string prefix) : IApplicationModelConve
 {
     private readonly AttributeRouteModel _prefixRoute = new(new RouteAttribute(prefix));
 
+    /// <summary>Prepends the configured route prefix to every controller's attribute route.</summary>
     public void Apply(ApplicationModel application)
     {
         foreach (var controller in application.Controllers)

@@ -10,7 +10,7 @@ namespace HomeFlow.Application.Services;
 
 public class UserService(IUserRepository userRepository, IJwtTokenProvider jwtTokenProvider)
 {
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
+    public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Username) || request.Username.Length < 3 || request.Username.Length > 50)
             throw new ValidationException("Invalid username: must be between 3 and 50 characters.");
@@ -21,11 +21,11 @@ public class UserService(IUserRepository userRepository, IJwtTokenProvider jwtTo
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
             throw new ValidationException("Invalid password: must be at least 8 characters.");
 
-        var existingByUsername = await userRepository.GetByUsernameAsync(request.Username);
+        var existingByUsername = await userRepository.GetByUsernameAsync(request.Username, ct);
         if (existingByUsername is not null)
             throw new ValidationException("A user with this username already exists.");
 
-        var existingByEmail = await userRepository.GetByEmailAsync(request.Email);
+        var existingByEmail = await userRepository.GetByEmailAsync(request.Email, ct);
         if (existingByEmail is not null)
             throw new ValidationException("A user with this email already exists.");
 
@@ -38,15 +38,15 @@ public class UserService(IUserRepository userRepository, IJwtTokenProvider jwtTo
             CreatedAt = DateTime.UtcNow
         };
 
-        var created = await userRepository.CreateAsync(user);
+        var created = await userRepository.CreateAsync(user, ct);
         var token = jwtTokenProvider.GenerateToken(created);
 
         return new AuthResponse(created.Id, created.Username, created.DisplayName, token);
     }
 
-    public async Task<AuthResponse> LoginAsync(LoginRequest request)
+    public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken ct = default)
     {
-        var user = await userRepository.GetByUsernameAsync(request.Username);
+        var user = await userRepository.GetByUsernameAsync(request.Username, ct);
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             throw new ValidationException("Invalid credentials.");
 
@@ -54,18 +54,18 @@ public class UserService(IUserRepository userRepository, IJwtTokenProvider jwtTo
         return new AuthResponse(user.Id, user.Username, user.DisplayName, token);
     }
 
-    public async Task<UserResponse> GetByIdAsync(Guid userId)
+    public async Task<UserResponse> GetByIdAsync(Guid userId, CancellationToken ct = default)
     {
-        var user = await userRepository.GetByIdAsync(userId);
+        var user = await userRepository.GetByIdAsync(userId, ct);
         if (user is null)
             throw new NotFoundException($"User with ID {userId} not found.");
 
         return new UserResponse(user.Id, user.Username, user.Email, user.DisplayName, user.CreatedAt);
     }
 
-    public async Task<IEnumerable<UserSummaryResponse>> GetAllUsersAsync()
+    public async Task<IEnumerable<UserSummaryResponse>> GetAllUsersAsync(CancellationToken ct = default)
     {
-        var users = await userRepository.GetAllAsync();
-        return users.Select(u => new UserSummaryResponse(u.Id, u.Username, u.DisplayName));
+        var users = await userRepository.GetAllAsync(ct);
+        return users.Select(u => new UserSummaryResponse(u.Id, u.Username, u.DisplayName)).ToList();
     }
 }

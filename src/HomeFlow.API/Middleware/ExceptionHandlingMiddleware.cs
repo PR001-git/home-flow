@@ -8,6 +8,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    /// <summary>Executes the next middleware and maps domain exceptions to HTTP error responses.</summary>
     public async Task InvokeAsync(HttpContext context)
     {
         try

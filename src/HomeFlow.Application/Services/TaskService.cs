@@ -8,7 +8,7 @@ namespace HomeFlow.Application.Services;
 
 public class TaskService(ITaskRepository taskRepository, IUserRepository userRepository)
 {
-    public async Task<TaskResponse> CreateTaskAsync(CreateTaskRequest request, Guid createdByUserId)
+    public async Task<TaskResponse> CreateTaskAsync(CreateTaskRequest request, Guid createdByUserId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 200)
             throw new ValidationException("Invalid title: must be between 1 and 200 characters.");
@@ -18,7 +18,7 @@ public class TaskService(ITaskRepository taskRepository, IUserRepository userRep
 
         if (request.AssignedToUserId.HasValue)
         {
-            var assignedUser = await userRepository.GetByIdAsync(request.AssignedToUserId.Value);
+            var assignedUser = await userRepository.GetByIdAsync(request.AssignedToUserId.Value, ct);
             if (assignedUser is null)
                 throw new ValidationException("Invalid assigned user: user not found.");
         }
@@ -35,32 +35,32 @@ public class TaskService(ITaskRepository taskRepository, IUserRepository userRep
             CreatedAt = DateTime.UtcNow
         };
 
-        var created = await taskRepository.CreateAsync(task);
+        var created = await taskRepository.CreateAsync(task, ct);
         return MapToResponse(created);
     }
 
-    public async Task<IEnumerable<TaskResponse>> GetAllTasksAsync(TaskFilterDto? filter)
+    public async Task<IEnumerable<TaskResponse>> GetAllTasksAsync(TaskFilterDto? filter, CancellationToken ct = default)
     {
         TaskFilter? domainFilter = filter is not null
             ? new TaskFilter(filter.AssignedToUserId, filter.Status, filter.TaskType)
             : null;
 
-        var tasks = await taskRepository.GetAllAsync(domainFilter);
-        return tasks.Select(t => MapToResponse(FlagOverdue(t)));
+        var tasks = await taskRepository.GetAllAsync(domainFilter, ct);
+        return tasks.Select(t => MapToResponse(FlagOverdue(t))).ToList();
     }
 
-    public async Task<TaskResponse> GetTaskByIdAsync(Guid id)
+    public async Task<TaskResponse> GetTaskByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var task = await taskRepository.GetByIdAsync(id);
+        var task = await taskRepository.GetByIdAsync(id, ct);
         if (task is null)
             throw new NotFoundException($"Task with ID {id} not found.");
 
         return MapToResponse(FlagOverdue(task));
     }
 
-    public async Task<TaskResponse> UpdateTaskAsync(Guid id, UpdateTaskRequest request)
+    public async Task<TaskResponse> UpdateTaskAsync(Guid id, UpdateTaskRequest request, CancellationToken ct = default)
     {
-        var task = await taskRepository.GetByIdAsync(id);
+        var task = await taskRepository.GetByIdAsync(id, ct);
         if (task is null)
             throw new NotFoundException($"Task with ID {id} not found.");
 
@@ -72,7 +72,7 @@ public class TaskService(ITaskRepository taskRepository, IUserRepository userRep
 
         if (request.AssignedToUserId.HasValue)
         {
-            var user = await userRepository.GetByIdAsync(request.AssignedToUserId.Value);
+            var user = await userRepository.GetByIdAsync(request.AssignedToUserId.Value, ct);
             if (user is null)
                 throw new ValidationException("Invalid assigned user: user not found.");
         }
@@ -82,13 +82,13 @@ public class TaskService(ITaskRepository taskRepository, IUserRepository userRep
         task.DueDate = request.DueDate;
         task.AssignedToUserId = request.AssignedToUserId;
 
-        var updated = await taskRepository.UpdateAsync(task);
+        var updated = await taskRepository.UpdateAsync(task, ct);
         return MapToResponse(updated);
     }
 
-    public async Task<TaskResponse> CompleteTaskAsync(Guid id, Guid requestingUserId)
+    public async Task<TaskResponse> CompleteTaskAsync(Guid id, Guid requestingUserId, CancellationToken ct = default)
     {
-        var task = await taskRepository.GetByIdAsync(id);
+        var task = await taskRepository.GetByIdAsync(id, ct);
         if (task is null)
             throw new NotFoundException($"Task with ID {id} not found.");
 
@@ -101,17 +101,17 @@ public class TaskService(ITaskRepository taskRepository, IUserRepository userRep
         task.Status = HouseholdTaskStatus.Completed;
         task.CompletedAt = DateTime.UtcNow;
 
-        var updated = await taskRepository.UpdateAsync(task);
+        var updated = await taskRepository.UpdateAsync(task, ct);
         return MapToResponse(updated);
     }
 
-    public async System.Threading.Tasks.Task DeleteTaskAsync(Guid id)
+    public async System.Threading.Tasks.Task DeleteTaskAsync(Guid id, CancellationToken ct = default)
     {
-        var task = await taskRepository.GetByIdAsync(id);
+        var task = await taskRepository.GetByIdAsync(id, ct);
         if (task is null)
             throw new NotFoundException($"Task with ID {id} not found.");
 
-        await taskRepository.DeleteAsync(id);
+        await taskRepository.DeleteAsync(id, ct);
     }
 
     private static HouseholdTask FlagOverdue(HouseholdTask task)

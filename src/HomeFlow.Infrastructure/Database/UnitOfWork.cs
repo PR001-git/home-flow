@@ -9,38 +9,43 @@ public class UnitOfWork(IDbConnectionFactory db) : IUnitOfWork, IAsyncDisposable
 
     public NpgsqlTransaction? Transaction { get; private set; }
 
-    public async Task<NpgsqlConnection> GetConnectionAsync()
+    /// <summary>Returns the shared connection, opening it on first call.</summary>
+    public async Task<NpgsqlConnection> GetConnectionAsync(CancellationToken ct = default)
     {
         if (_connection is null)
         {
             _connection = db.CreateConnection();
-            await _connection.OpenAsync();
+            await _connection.OpenAsync(ct);
         }
         return _connection;
     }
 
-    public async Task BeginTransactionAsync()
+    /// <summary>Opens a connection (if not already open) and starts a new database transaction.</summary>
+    public async Task BeginTransactionAsync(CancellationToken ct = default)
     {
-        var connection = await GetConnectionAsync();
-        Transaction = await connection.BeginTransactionAsync();
+        var connection = await GetConnectionAsync(ct);
+        Transaction = await connection.BeginTransactionAsync(ct);
     }
 
-    public async Task CommitAsync()
+    /// <summary>Commits the active transaction and disposes it.</summary>
+    public async Task CommitAsync(CancellationToken ct = default)
     {
         if (Transaction is null) return;
-        await Transaction.CommitAsync();
+        await Transaction.CommitAsync(ct);
         await Transaction.DisposeAsync();
         Transaction = null;
     }
 
-    public async Task RollbackAsync()
+    /// <summary>Rolls back the active transaction and disposes it.</summary>
+    public async Task RollbackAsync(CancellationToken ct = default)
     {
         if (Transaction is null) return;
-        await Transaction.RollbackAsync();
+        await Transaction.RollbackAsync(ct);
         await Transaction.DisposeAsync();
         Transaction = null;
     }
 
+    /// <summary>Disposes the active transaction and connection.</summary>
     public async ValueTask DisposeAsync()
     {
         if (Transaction is not null)

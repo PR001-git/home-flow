@@ -6,16 +6,22 @@ using HomeFlow.Domain.Repositories;
 
 namespace HomeFlow.Application.Services;
 
-public class DashboardService(ITaskRepository taskRepository, IUserRepository userRepository)
+public class DashboardService(ITaskRepository taskRepository, IUserRepository userRepository, TimeProvider timeProvider)
 {
-    public async Task<DashboardResponse> GetDashboardAsync()
+    public async Task<DashboardResponse> GetDashboardAsync(CancellationToken ct = default)
     {
-        var users = (await userRepository.GetAllAsync()).ToList();
-        var tasks = (await taskRepository.GetAllAsync(null)).ToList();
+        var now = timeProvider.GetUtcNow().UtcDateTime;
 
-        var effective = tasks.Select(t => (Task: t, Status: EffectiveStatus(t))).ToList();
+        var usersTask = userRepository.GetAllAsync(ct);
+        var tasksTask = taskRepository.GetAllAsync(null, ct);
+        await Task.WhenAll(usersTask, tasksTask);
 
-        var today = DateTime.UtcNow.Date;
+        var users = (await usersTask).ToList();
+        var tasks = (await tasksTask).ToList();
+
+        var effective = tasks.Select(t => (Task: t, Status: EffectiveStatus(t, now))).ToList();
+
+        var today = now.Date;
         var todaysTasks = effective
             .Where(e => e.Task.DueDate.HasValue && e.Task.DueDate.Value.Date == today)
             .Select(e => MapToResponse(e.Task, e.Status))
@@ -32,15 +38,16 @@ public class DashboardService(ITaskRepository taskRepository, IUserRepository us
         var distribution = users.Select(u => new MemberDistribution(
             u.Id,
             u.DisplayName,
-            effective.Count(e => e.Task.AssignedToUserId == u.Id && e.Status != HouseholdTaskStatus.Completed)));
+            effective.Count(e => e.Task.AssignedToUserId == u.Id && e.Status != HouseholdTaskStatus.Completed)))
+            .ToList();
 
         return new DashboardResponse(todaysTasks, overdueCount, totals, distribution);
     }
 
-    private static HouseholdTaskStatus EffectiveStatus(HouseholdTask task)
+    private static HouseholdTaskStatus EffectiveStatus(HouseholdTask task, DateTime now)
     {
         if (task.DueDate.HasValue
-            && task.DueDate.Value < DateTime.UtcNow
+            && task.DueDate.Value < now
             && task.Status is HouseholdTaskStatus.Pending or HouseholdTaskStatus.InProgress)
         {
             return HouseholdTaskStatus.Overdue;
