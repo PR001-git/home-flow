@@ -25,6 +25,18 @@ describe('apiClient', () => {
     await expect(apiClient.get('/api/users')).rejects.toBeInstanceOf(ApiError);
   });
 
+  it('extracts the error field from a JSON error body', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Invalid due date: must be in the future.' }), { status: 400 }),
+    ));
+    await expect(apiClient.post('/api/tasks')).rejects.toThrow('Invalid due date: must be in the future.');
+  });
+
+  it('falls back to raw text when the error body is not JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('plain failure', { status: 400 })));
+    await expect(apiClient.get('/api/users')).rejects.toThrow('plain failure');
+  });
+
   it('dispatches homeflow:unauthorized on 401', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Unauthorized', { status: 401 })));
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');

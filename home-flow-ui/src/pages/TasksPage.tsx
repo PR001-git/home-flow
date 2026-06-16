@@ -15,19 +15,19 @@ export function TasksPage() {
   const remove = useDeleteTask();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Tasks</h1>
-        <button onClick={() => setCreating(true)} className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white">New task</button>
+        <h1 className="hf-h1">Tasks</h1>
+        <button onClick={() => setCreating(true)} className="hf-btn-primary">New task</button>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <select className="rounded border px-2 py-1 text-sm"
+        <select className="hf-select"
           onChange={(e) => setFilter((f) => ({ ...f, assignedToUserId: e.target.value || undefined }))}>
           <option value="">All assignees</option>
           {members.map((m) => <option key={m.id} value={m.id}>{m.displayName}</option>)}
         </select>
-        <select className="rounded border px-2 py-1 text-sm"
+        <select className="hf-select"
           onChange={(e) => setFilter((f) => ({ ...f, status: e.target.value === '' ? undefined : Number(e.target.value) as TaskStatus }))}>
           <option value="">All statuses</option>
           <option value={TaskStatus.Pending}>Pending</option>
@@ -35,7 +35,7 @@ export function TasksPage() {
           <option value={TaskStatus.Completed}>Completed</option>
           <option value={TaskStatus.Overdue}>Overdue</option>
         </select>
-        <select className="rounded border px-2 py-1 text-sm"
+        <select className="hf-select"
           onChange={(e) => setFilter((f) => ({ ...f, taskType: e.target.value === '' ? undefined : Number(e.target.value) as TaskType }))}>
           <option value="">All types</option>
           <option value={TaskType.OneOff}>One-off</option>
@@ -43,8 +43,8 @@ export function TasksPage() {
         </select>
       </div>
 
-      {isLoading ? <p>Loading…</p> : (
-        <div className="space-y-2">
+      {isLoading ? <p className="text-slate-500">Loading…</p> : (
+        <div className="space-y-3">
           {tasks.map((t) => (
             <TaskCard key={t.id} task={t} members={members}
               onComplete={(id) => complete.mutate(id)}

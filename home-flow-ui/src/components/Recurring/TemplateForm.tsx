@@ -28,8 +28,8 @@ export function TemplateForm({ template, onClose }: Props) {
       if (template) await update.mutateAsync({ id: template.id, input });
       else await create.mutateAsync(input);
       onClose();
-    } catch {
-      setError('Could not save the template');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Could not save the template');
     }
   }
 

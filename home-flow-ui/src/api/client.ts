@@ -16,6 +16,20 @@ function authHeaders(): Record<string, string> {
   return headers;
 }
 
+function extractErrorMessage(text: string): string {
+  if (!text) return '';
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object') {
+      const msg = parsed.error ?? parsed.message ?? parsed.title;
+      if (typeof msg === 'string' && msg) return msg;
+    }
+  } catch {
+    // not JSON — fall through to raw text
+  }
+  return text;
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
@@ -29,7 +43,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new ApiError(res.status, text || res.statusText);
+    throw new ApiError(res.status, extractErrorMessage(text) || res.statusText);
   }
 
   if (res.status === 204) return undefined as T;
