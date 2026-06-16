@@ -62,4 +62,10 @@ public class UserService(IUserRepository userRepository, IJwtTokenProvider jwtTo
 
         return new UserResponse(user.Id, user.Username, user.Email, user.DisplayName, user.CreatedAt);
     }
+
+    public async Task<IEnumerable<UserSummaryResponse>> GetAllUsersAsync()
+    {
+        var users = await userRepository.GetAllAsync();
+        return users.Select(u => new UserSummaryResponse(u.Id, u.Username, u.DisplayName));
+    }
 }
