@@ -88,13 +88,13 @@ public class RecurringTaskTemplateRepository(IDbConnectionFactory db) : IRecurri
     {
         return new RecurringTaskTemplate
         {
-            Id = reader.GetGuid(0),
-            Title = reader.GetString(1),
-            Description = reader.IsDBNull(2) ? null : reader.GetString(2),
-            FrequencyDays = reader.GetInt32(3),
-            CurrentAssigneeIndex = reader.GetInt32(4),
-            LastGeneratedDate = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
-            CreatedAt = reader.GetDateTime(6)
+            Id = reader.Get<Guid>("id"),
+            Title = reader.Get<string>("title"),
+            Description = reader.GetNullableString("description"),
+            FrequencyDays = reader.Get<int>("frequency_days"),
+            CurrentAssigneeIndex = reader.Get<int>("current_assignee_index"),
+            LastGeneratedDate = reader.GetNullable<DateTime>("last_generated_date"),
+            CreatedAt = reader.Get<DateTime>("created_at")
         };
     }
 }

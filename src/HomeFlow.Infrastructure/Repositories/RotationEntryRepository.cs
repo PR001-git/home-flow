@@ -19,13 +19,7 @@ public class RotationEntryRepository(IDbConnectionFactory db) : IRotationEntryRe
         await using var reader = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
-            results.Add(new RotationEntry
-            {
-                Id = reader.GetGuid(0),
-                TemplateId = reader.GetGuid(1),
-                UserId = reader.GetGuid(2),
-                RotationOrder = reader.GetInt32(3)
-            });
+            results.Add(MapFromReader(reader));
         }
         return results;
     }
@@ -55,5 +49,16 @@ public class RotationEntryRepository(IDbConnectionFactory db) : IRotationEntryRe
             "DELETE FROM rotation_entries WHERE template_id = @templateId", conn);
         cmd.Parameters.AddWithValue("templateId", templateId);
         await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static RotationEntry MapFromReader(NpgsqlDataReader reader)
+    {
+        return new RotationEntry
+        {
+            Id = reader.Get<Guid>("id"),
+            TemplateId = reader.Get<Guid>("template_id"),
+            UserId = reader.Get<Guid>("user_id"),
+            RotationOrder = reader.Get<int>("rotation_order")
+        };
     }
 }

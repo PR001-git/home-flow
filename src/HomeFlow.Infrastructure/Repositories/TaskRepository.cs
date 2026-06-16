@@ -131,17 +131,17 @@ public class TaskRepository(IDbConnectionFactory db) : ITaskRepository
     {
         return new HouseholdTask
         {
-            Id = reader.GetGuid(0),
-            Title = reader.GetString(1),
-            Description = reader.IsDBNull(2) ? null : reader.GetString(2),
-            TaskType = (HouseholdTaskType)reader.GetInt16(3),
-            Status = (HouseholdTaskStatus)reader.GetInt16(4),
-            DueDate = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
-            AssignedToUserId = reader.IsDBNull(6) ? null : reader.GetGuid(6),
-            CreatedByUserId = reader.GetGuid(7),
-            TemplateId = reader.IsDBNull(8) ? null : reader.GetGuid(8),
-            CreatedAt = reader.GetDateTime(9),
-            CompletedAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10)
+            Id = reader.Get<Guid>("id"),
+            Title = reader.Get<string>("title"),
+            Description = reader.GetNullableString("description"),
+            TaskType = reader.GetEnum<HouseholdTaskType>("task_type"),
+            Status = reader.GetEnum<HouseholdTaskStatus>("status"),
+            DueDate = reader.GetNullable<DateTime>("due_date"),
+            AssignedToUserId = reader.GetNullable<Guid>("assigned_to_user_id"),
+            CreatedByUserId = reader.Get<Guid>("created_by_user_id"),
+            TemplateId = reader.GetNullable<Guid>("template_id"),
+            CreatedAt = reader.Get<DateTime>("created_at"),
+            CompletedAt = reader.GetNullable<DateTime>("completed_at")
         };
     }
 }
