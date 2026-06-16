@@ -114,4 +114,21 @@ public class IntegrationTests : IClassFixture<CustomWebApplicationFactory>
         var task3 = await gen3.Content.ReadFromJsonAsync<JsonElement>();
         task3.GetProperty("assignedToUserId").GetString().Should().Be(userId1.ToString());
     }
+
+    [Fact]
+    public async Task Users_List_RequiresAuthAndReturnsMembers()
+    {
+        var unauth = await _client.GetAsync("/api/users");
+        unauth.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+
+        var (token, _) = await RegisterAndGetTokenAsync("userslist");
+        SetAuth(token);
+
+        var response = await _client.GetAsync("/api/users");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("userslist");
+        body.Should().NotContain("passwordHash");
+    }
 }
