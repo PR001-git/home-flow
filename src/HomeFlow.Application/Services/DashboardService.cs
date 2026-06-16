@@ -40,7 +40,7 @@ public class DashboardService(ITaskRepository taskRepository, IUserRepository us
     private static HouseholdTaskStatus EffectiveStatus(HouseholdTask task)
     {
         if (task.DueDate.HasValue
-            && task.DueDate.Value.Date < DateTime.UtcNow.Date
+            && task.DueDate.Value < DateTime.UtcNow
             && task.Status is HouseholdTaskStatus.Pending or HouseholdTaskStatus.InProgress)
         {
             return HouseholdTaskStatus.Overdue;

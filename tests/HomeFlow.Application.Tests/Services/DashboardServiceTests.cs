@@ -26,7 +26,7 @@ public class DashboardServiceTests
         _userRepository.GetAllAsync().Returns(new[] { pedro, maria });
 
         var overdue = new HouseholdTask { Id = Guid.NewGuid(), Title = "late", Status = HouseholdTaskStatus.Pending, DueDate = DateTime.UtcNow.AddDays(-1), AssignedToUserId = pedro.Id };
-        var today = new HouseholdTask { Id = Guid.NewGuid(), Title = "today", Status = HouseholdTaskStatus.Pending, DueDate = DateTime.UtcNow, AssignedToUserId = maria.Id };
+        var today = new HouseholdTask { Id = Guid.NewGuid(), Title = "today", Status = HouseholdTaskStatus.Pending, DueDate = DateTime.UtcNow.AddHours(1), AssignedToUserId = maria.Id };
         var done = new HouseholdTask { Id = Guid.NewGuid(), Title = "done", Status = HouseholdTaskStatus.Completed, AssignedToUserId = pedro.Id };
         _taskRepository.GetAllAsync(null).Returns(new[] { overdue, today, done });
 
