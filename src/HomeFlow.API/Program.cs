@@ -37,6 +37,7 @@ builder.Services.AddScoped<IJwtTokenProvider>(_ => new JwtTokenProvider(jwtKey, 
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<TaskService>();
 builder.Services.AddScoped<RecurringTaskService>();
+builder.Services.AddScoped<DashboardService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

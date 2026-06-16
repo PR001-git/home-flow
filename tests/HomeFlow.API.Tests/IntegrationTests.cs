@@ -131,4 +131,21 @@ public class IntegrationTests : IClassFixture<CustomWebApplicationFactory>
         body.Should().Contain("userslist");
         body.Should().NotContain("passwordHash");
     }
+
+    [Fact]
+    public async Task Dashboard_RequiresAuthAndReturnsAggregates()
+    {
+        var unauth = await _client.GetAsync("/api/dashboard");
+        unauth.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+
+        var (token, _) = await RegisterAndGetTokenAsync("dashuser");
+        SetAuth(token);
+
+        var response = await _client.GetAsync("/api/dashboard");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        json.TryGetProperty("overdueCount", out _).Should().BeTrue();
+        json.TryGetProperty("distribution", out _).Should().BeTrue();
+    }
 }
