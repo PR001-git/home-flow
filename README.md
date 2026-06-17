@@ -91,6 +91,10 @@ JWT-based login with seeded demo users, so you can explore instantly.
 ## 🚀 Quick Start
 
 ```bash
+#run everything just running
+ 
+ .\scripts\up.ps1
+#or
 # Spin up Postgres + API + UI
 docker-compose up
 ```
