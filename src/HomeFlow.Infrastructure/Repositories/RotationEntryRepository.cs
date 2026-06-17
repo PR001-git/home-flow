@@ -7,25 +7,27 @@ namespace HomeFlow.Infrastructure.Repositories;
 
 public class RotationEntryRepository(UnitOfWork db) : IRotationEntryRepository
 {
-    public async Task<IEnumerable<RotationEntry>> GetByTemplateIdAsync(Guid templateId)
+    /// <summary>Returns all rotation entries for the given template, ordered by rotation order.</summary>
+    public async Task<IEnumerable<RotationEntry>> GetByTemplateIdAsync(Guid templateId, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(
             "SELECT id, template_id, user_id, rotation_order FROM rotation_entries WHERE template_id = @templateId ORDER BY rotation_order", conn, db.Transaction);
         cmd.Parameters.AddWithValue("templateId", templateId);
 
         var results = new List<RotationEntry>();
-        await using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
         {
             results.Add(MapFromReader(reader));
         }
         return results;
     }
 
-    public async System.Threading.Tasks.Task CreateAsync(RotationEntry entry)
+    /// <summary>Inserts a new rotation entry row and populates the entity's generated ID.</summary>
+    public async System.Threading.Tasks.Task CreateAsync(RotationEntry entry, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(
             """
             INSERT INTO rotation_entries (template_id, user_id, rotation_order)
@@ -36,16 +38,17 @@ public class RotationEntryRepository(UnitOfWork db) : IRotationEntryRepository
         cmd.Parameters.AddWithValue("userId", entry.UserId);
         cmd.Parameters.AddWithValue("rotationOrder", entry.RotationOrder);
 
-        entry.Id = (Guid)(await cmd.ExecuteScalarAsync())!;
+        entry.Id = (Guid)(await cmd.ExecuteScalarAsync(ct))!;
     }
 
-    public async System.Threading.Tasks.Task DeleteByTemplateIdAsync(Guid templateId)
+    /// <summary>Removes all rotation entry rows belonging to the given template.</summary>
+    public async System.Threading.Tasks.Task DeleteByTemplateIdAsync(Guid templateId, CancellationToken ct = default)
     {
-        var conn = await db.GetConnectionAsync();
+        var conn = await db.GetConnectionAsync(ct);
         await using var cmd = new NpgsqlCommand(
             "DELETE FROM rotation_entries WHERE template_id = @templateId", conn, db.Transaction);
         cmd.Parameters.AddWithValue("templateId", templateId);
-        await cmd.ExecuteNonQueryAsync();
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 
     private static RotationEntry MapFromReader(NpgsqlDataReader reader)

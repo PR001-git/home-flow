@@ -79,4 +79,19 @@ public class UserServiceTests
 
         await act.Should().ThrowAsync<ValidationException>().WithMessage("*credentials*");
     }
+
+    [Fact]
+    public async Task GetAllUsers_ReturnsSummariesWithoutSecrets()
+    {
+        _userRepository.GetAllAsync().Returns(new[]
+        {
+            new User { Id = Guid.NewGuid(), Username = "pedro", Email = "p@test.com", PasswordHash = "secret", DisplayName = "Pedro" }
+        });
+
+        var result = (await _sut.GetAllUsersAsync()).ToList();
+
+        result.Should().HaveCount(1);
+        result[0].Username.Should().Be("pedro");
+        result[0].DisplayName.Should().Be("Pedro");
+    }
 }

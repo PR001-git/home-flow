@@ -11,9 +11,14 @@ public record TaskFilter(
 
 public interface ITaskRepository
 {
-    Task<HouseholdTask?> GetByIdAsync(Guid id);
-    Task<IEnumerable<HouseholdTask>> GetAllAsync(TaskFilter? filter);
-    Task<HouseholdTask> CreateAsync(HouseholdTask task);
-    Task<HouseholdTask> UpdateAsync(HouseholdTask task);
-    Task DeleteAsync(Guid id);
+    /// <summary>Returns the task with the given ID, or <see langword="null"/> if not found.</summary>
+    Task<HouseholdTask?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    /// <summary>Returns all tasks matching the optional filter, ordered by creation date descending.</summary>
+    Task<IEnumerable<HouseholdTask>> GetAllAsync(TaskFilter? filter, CancellationToken ct = default);
+    /// <summary>Persists a new task and populates its generated ID.</summary>
+    Task<HouseholdTask> CreateAsync(HouseholdTask task, CancellationToken ct = default);
+    /// <summary>Updates the mutable fields of an existing task.</summary>
+    Task<HouseholdTask> UpdateAsync(HouseholdTask task, CancellationToken ct = default);
+    /// <summary>Permanently removes the task with the given ID.</summary>
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
 }
